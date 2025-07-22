@@ -1,4 +1,4 @@
-name: Deploy Applications to AWS (Production Ready)
+name: Deploy Applications to AWS (Production)
 
 on:
   push:
@@ -39,7 +39,7 @@ jobs:
           echo "Pushing backend image to ECR..."
           docker push $ECR_REGISTRY/$BACKEND_REPO:latest
           docker push $ECR_REGISTRY/$BACKEND_REPO:$GITHUB_SHA
-          echo "Backend image pushed successfully"
+          echo "✅ Backend image pushed successfully"
 
       - name: Build and push Frontend image
         run: |
@@ -50,82 +50,76 @@ jobs:
           echo "Pushing frontend image to ECR..."
           docker push $ECR_REGISTRY/$FRONTEND_REPO:latest
           docker push $ECR_REGISTRY/$FRONTEND_REPO:$GITHUB_SHA
-          echo "Frontend image pushed successfully"
+          echo "✅ Frontend image pushed successfully"
 
       - name: Deploy to EC2 via AWS SSM
         run: |
-          echo "Starting deployment process..."
+          echo "🚀 Starting deployment process..."
           
-          # Obtenir l'ID de l'instance EC2
           INSTANCE_ID=$(aws ec2 describe-instances \
             --filters "Name=ip-address,Values=${{ secrets.EC2_HOST }}" \
             --query "Reservations[0].Instances[0].InstanceId" \
             --output text)
           
           if [ "$INSTANCE_ID" == "null" ] || [ "$INSTANCE_ID" == "" ]; then
-            echo "Error: Could not find EC2 instance with IP ${{ secrets.EC2_HOST }}"
+            echo "❌ Error: Could not find EC2 instance with IP ${{ secrets.EC2_HOST }}"
             exit 1
           fi
           
-          echo "Deploying to instance: $INSTANCE_ID"
+          echo "📡 Deploying to instance: $INSTANCE_ID"
           
-          # Envoyer les commandes de déploiement via SSM
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids $INSTANCE_ID \
             --document-name "AWS-RunShellScript" \
             --parameters 'commands=[
-              "echo \"=== Starting deployment at $(date) ===\"",
-              "echo \"Logging into ECR...\"",
+              "echo \"=== 🚀 Starting deployment at $(date) ===\"",
+              "echo \"🔐 Logging into ECR...\"",
               "aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}",
-              "echo \"Pulling latest images...\"",
-              "docker pull ${{ env.ECR_REGISTRY }}/${{ env.BACKEND_REPO }}:latest || { echo \"Failed to pull backend image\"; exit 1; }",
-              "docker pull ${{ env.ECR_REGISTRY }}/${{ env.FRONTEND_REPO }}:latest || { echo \"Failed to pull frontend image\"; exit 1; }",
-              "echo \"Setting up Docker network...\"",
-              "docker network create app-network 2>/dev/null || echo \"Network already exists\"",
-              "echo \"Stopping existing containers...\"",
+              "echo \"📥 Pulling latest images...\"",
+              "docker pull ${{ env.ECR_REGISTRY }}/${{ env.BACKEND_REPO }}:latest || { echo \"❌ Failed to pull backend image\"; exit 1; }",
+              "docker pull ${{ env.ECR_REGISTRY }}/${{ env.FRONTEND_REPO }}:latest || { echo \"❌ Failed to pull frontend image\"; exit 1; }",
+              "echo \"🔗 Setting up Docker network...\"",
+              "docker network create app-network 2>/dev/null || echo \"Network app-network already exists\"",
+              "echo \"🛑 Stopping existing containers...\"",
               "docker stop backend-app frontend-app 2>/dev/null || echo \"No containers to stop\"",
               "docker rm backend-app frontend-app 2>/dev/null || echo \"No containers to remove\"",
-              "echo \"Starting new backend container...\"",
+              "echo \"🟢 Starting new backend container...\"",
               "docker run -d --name backend-app \
+                --restart unless-stopped \
                 --network app-network \
-                --log-driver=awslogs \
-                --log-opt awslogs-group=/iim-project/application \
-                --log-opt awslogs-region=eu-west-1 \
-                --log-opt awslogs-create-group=true \
                 -p 3001:3001 \
                 -e AWS_REGION=eu-west-1 \
                 -e NODE_ENV=production \
                 -e DYNAMODB_TABLE_NAME=iim-project-data \
+                -e PORT=3001 \
                 ${{ env.ECR_REGISTRY }}/${{ env.BACKEND_REPO }}:latest",
-              "echo \"Starting new frontend container...\"", 
+              "echo \"🟦 Starting new frontend container...\"", 
               "docker run -d --name frontend-app \
+                --restart unless-stopped \
                 --network app-network \
-                --log-driver=awslogs \
-                --log-opt awslogs-group=/iim-project/application \
-                --log-opt awslogs-region=eu-west-1 \
-                --log-opt awslogs-create-group=true \
                 -p 80:80 \
                 -e BACKEND_HOST=${{ secrets.BACKEND_HOST }} \
                 -e BACKEND_PORT=${{ secrets.BACKEND_PORT }} \
                 ${{ env.ECR_REGISTRY }}/${{ env.FRONTEND_REPO }}:latest",
-              "echo \"Waiting for containers to start...\"",
-              "sleep 20",
-              "echo \"=== Container Status ===\"",
-              "docker ps -a",
-              "echo \"=== Health Check ===\"",
-              "curl -f http://localhost/api/health -m 10 || echo \"Health check failed - this is expected with test app\"",
-              "curl -f http://localhost -m 10 -o /dev/null || echo \"Frontend check failed\"",
-              "echo \"=== Deployment completed successfully at $(date) ===\""
+              "echo \"⏳ Waiting for containers to start...\"",
+              "sleep 25",
+              "echo \"=== 📊 Container Status ===\"",
+              "docker ps -a --format \"table {{.Names}}\\t{{.Status}}\\t{{.Ports}}\"",
+              "echo \"=== 🩺 Health Checks ===\"",
+              "echo \"Backend health check...\"",
+              "curl -f http://localhost:3001/api/health -m 15 || echo \"⚠️ Backend health check failed\"",
+              "echo \"Frontend connectivity check...\"",
+              "curl -f http://localhost -m 15 -o /dev/null -s && echo \"✅ Frontend accessible\" || echo \"⚠️ Frontend not ready yet\"",
+              "echo \"=== ✅ Deployment completed successfully at $(date) ===\""
             ]' \
             --timeout-seconds 900 \
             --query "Command.CommandId" \
             --output text)
           
-          echo "Command ID: $COMMAND_ID"
+          echo "📋 Command ID: $COMMAND_ID"
           
-          # Attendre que la commande se termine
-          echo "Waiting for deployment to complete..."
-          sleep 45
+          echo "⏳ Waiting for deployment to complete..."
+          sleep 60
           
           # Vérifier le statut de la commande
           STATUS=$(aws ssm get-command-invocation \
@@ -134,10 +128,9 @@ jobs:
             --query "Status" \
             --output text)
           
-          echo "Deployment status: $STATUS"
+          echo "📈 Deployment status: $STATUS"
           
-          # Afficher les logs de déploiement
-          echo "=== Deployment Output ==="
+          echo "=== 📋 Deployment Output ==="
           aws ssm get-command-invocation \
             --command-id $COMMAND_ID \
             --instance-id $INSTANCE_ID \
@@ -152,37 +145,54 @@ jobs:
             --output text)
           
           if [ "$ERROR_OUTPUT" != "" ] && [ "$ERROR_OUTPUT" != "None" ]; then
-            echo "=== Deployment Errors ==="
+            echo "=== ⚠️ Deployment Errors ==="
             echo "$ERROR_OUTPUT"
           fi
           
           # Vérifier que le déploiement s'est bien passé
           if [ "$STATUS" != "Success" ]; then
-            echo "Deployment failed with status: $STATUS"
+            echo "❌ Deployment failed with status: $STATUS"
             exit 1
           fi
           
-          echo "✅ Deployment completed successfully!"
-          echo "🌐 Application URL: http://${{ secrets.EC2_HOST }}"
-          echo "🔍 Health Check: http://${{ secrets.EC2_HOST }}/api/health"
+          echo "🎉 Deployment completed successfully!"
 
-      - name: Post-deployment validation
+      - name: Final validation
         run: |
-          echo "Performing post-deployment checks..."
+          echo "🔍 Performing final validation..."
           
-          # Attendre quelques secondes que l'application soit vraiment prête
-          sleep 10
+          # Attendre que l'application soit complètement prête
+          sleep 15
           
-          # Test de connectivité de base
-          echo "Testing connectivity to ${{ secrets.EC2_HOST }}..."
+          # Test de connectivité
+          echo "🌐 Testing application connectivity..."
+          if curl -f http://${{ secrets.EC2_HOST }}/api/health -m 30 -s; then
+            echo "✅ Backend API is responding"
+          else
+            echo "⚠️ Backend API may not be ready yet"
+          fi
+          
           if curl -f http://${{ secrets.EC2_HOST }} -m 30 -o /dev/null -s; then
             echo "✅ Frontend is accessible"
           else
-            echo "⚠️ Frontend might not be ready yet (normal for new deployment)"
+            echo "⚠️ Frontend may not be ready yet"
           fi
           
-          echo "🎉 Deployment pipeline completed!"
-          echo "📊 Monitor your application:"
-          echo "   - Application: http://${{ secrets.EC2_HOST }}"
-          echo "   - CloudWatch: https://console.aws.amazon.com/cloudwatch/"
-          echo "   - EC2 Instance: https://console.aws.amazon.com/ec2/"
+          echo ""
+          echo "🎊 ==========================="
+          echo "🎉 DEPLOYMENT SUCCESSFUL! 🎉"
+          echo "🎊 ==========================="
+          echo ""
+          echo "🔗 Application URLs:"
+          echo "   📱 Frontend: http://${{ secrets.EC2_HOST }}"
+          echo "   🔌 API Health: http://${{ secrets.EC2_HOST }}/api/health"
+          echo "   📊 Metrics: http://${{ secrets.EC2_HOST }}/api/metrics"
+          echo ""
+          echo "🛠️ Management URLs:"
+          echo "   📊 CloudWatch: https://console.aws.amazon.com/cloudwatch/"
+          echo "   💾 DynamoDB: https://console.aws.amazon.com/dynamodb/"
+          echo "   🐳 ECR: https://console.aws.amazon.com/ecr/"
+          echo ""
+          echo "⚡ Quick tests:"
+          echo "   curl http://${{ secrets.EC2_HOST }}/api/health"
+          echo "   curl -X POST http://${{ secrets.EC2_HOST }}/api/todos -H 'Content-Type: application/json' -d '{\"text\":\"Test task\"}'"

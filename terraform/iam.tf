@@ -29,6 +29,52 @@ resource "aws_iam_role_policy_attachment" "ecr_read_only" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
+resource "aws_iam_role_policy" "cloudwatch_logs_access" {
+  name = "CloudWatch-Logs-Full-Access"
+  role = aws_iam_role.ec2_ssm_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams"
+        ]
+        Resource = [
+          "arn:aws:logs:eu-west-1:615041344700:*"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "secrets_manager_access" {
+  name = "Secrets-Manager-Access-Policy"
+  role = aws_iam_role.ec2_ssm_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:ListSecrets"
+        ]
+        Resource = [
+          "arn:aws:secretsmanager:eu-west-1:615041344700:secret:iim-project-secrets*"
+        ]
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy" "dynamodb_access" {
   name = "DynamoDB-Access-Policy"
   role = aws_iam_role.ec2_ssm_role.id
