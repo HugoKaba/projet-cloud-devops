@@ -1,0 +1,88 @@
+name: Deploy Applications to AWS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: eu-west-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-west-1.amazonaws.com
+  FRONTEND_REPO: iim-project-frontend
+  BACKEND_REPO: iim-project-backend
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build and push Backend image
+        run: |
+          cd backend
+          docker build -t $ECR_REGISTRY/$BACKEND_REPO:latest .
+          docker tag $ECR_REGISTRY/$BACKEND_REPO:latest $ECR_REGISTRY/$BACKEND_REPO:$GITHUB_SHA
+          docker push $ECR_REGISTRY/$BACKEND_REPO:latest
+          docker push $ECR_REGISTRY/$BACKEND_REPO:$GITHUB_SHA
+
+      - name: Build and push Frontend image
+        run: |
+          cd frontend
+          docker build -t $ECR_REGISTRY/$FRONTEND_REPO:latest .
+          docker tag $ECR_REGISTRY/$FRONTEND_REPO:latest $ECR_REGISTRY/$FRONTEND_REPO:$GITHUB_SHA
+          docker push $ECR_REGISTRY/$FRONTEND_REPO:latest
+          docker push $ECR_REGISTRY/$FRONTEND_REPO:$GITHUB_SHA
+
+      - name: Deploy to EC2
+        run: |
+          echo "${{ secrets.EC2_SSH_KEY }}" > private_key
+          chmod 600 private_key
+          
+          ssh -i private_key -o StrictHostKeyChecking=no ec2-user@${{ secrets.EC2_HOST }} << 'EOF'
+            # Login to ECR
+            aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+            
+            # Pull latest images
+            docker pull ${{ env.ECR_REGISTRY }}/${{ env.BACKEND_REPO }}:latest
+            docker pull ${{ env.ECR_REGISTRY }}/${{ env.FRONTEND_REPO }}:latest
+            
+            # Create network if not exists
+            docker network create app-network || true
+            
+            # Stop and remove existing containers
+            docker stop backend-app frontend-app || true
+            docker rm backend-app frontend-app || true
+            
+            # Start new containers
+            docker run -d --name backend-app \
+              --network app-network \
+              -p 3001:3001 \
+              -e AWS_REGION=eu-west-1 \
+              -e NODE_ENV=production \
+              ${{ env.ECR_REGISTRY }}/${{ env.BACKEND_REPO }}:latest
+            
+            docker run -d --name frontend-app \
+              --network app-network \
+              -p 80:80 \
+              -e BACKEND_HOST=${{ secrets.BACKEND_HOST }} \
+              -e BACKEND_PORT=${{ secrets.BACKEND_PORT }} \
+              ${{ env.ECR_REGISTRY }}/${{ env.FRONTEND_REPO }}:latest
+            
+            # Health check
+            sleep 15
+            curl -f http://localhost/api/health || exit 1
+            echo "Deployment successful!"
+          EOF

@@ -1,4 +1,3 @@
-# Étape 1 : Build de l'application React
 FROM node:18-alpine AS builder
 
 WORKDIR /app
@@ -7,15 +6,15 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# Étape 2 : Serveur nginx pour servir l'application
 FROM nginx:alpine
 
-# Copier les fichiers buildés
+ENV BACKEND_HOST=localhost
+ENV BACKEND_PORT=3001
+
 COPY --from=builder /app/build /usr/share/nginx/html
 
-# Configuration nginx personnalisée
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY default.conf.template /etc/nginx/templates/default.conf.template
+
+CMD ["/bin/sh", "-c", "envsubst '\\$BACKEND_HOST \\$BACKEND_PORT' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"]
 
 EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
