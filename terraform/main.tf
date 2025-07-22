@@ -11,6 +11,9 @@ provider "aws" {
   region = var.aws_region
 }
 
+provider "random" {
+}
+
 data "aws_ami" "amazon_linux" {
   most_recent = true
   owners      = ["amazon"]

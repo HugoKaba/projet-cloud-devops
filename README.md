@@ -30,6 +30,7 @@ Ce projet implémente une architecture Cloud DevOps complète avec :
 - **Backend Node.js** : API REST avec connexion DynamoDB
 - **Infrastructure as Code** : Terraform pour l'infrastructure AWS
 - **Pipeline CI/CD** : GitHub Actions pour le déploiement automatisé
+- **CDN Global** : CloudFront pour performance mondiale
 - **Sécurité avancée** : AWS IAM Roles + Session Manager
 - **Monitoring** : CloudWatch avec dashboard et alertes
 
@@ -37,30 +38,29 @@ Ce projet implémente une architecture Cloud DevOps complète avec :
 
 - **Déploiement** : Utilisation d'AWS Systems Manager Session Manager
 - **Architecture IAM avancée** : Rôles spécifiques pour chaque service
+- **CDN CloudFront** : Distribution globale avec cache intelligent
 - **Pipeline sécurisé** : Secrets management avec AWS Secrets Manager
 - **Monitoring complet** : CloudWatch Logs + Dashboard + Métriques personnalisées
 
 ## 🏗️ Architecture
 
 ```
-
-          ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-          │   GitHub Repo   │───▶│ GitHub Actions  │───▶│   AWS Cloud     │
-          │                 │    │    (CI/CD)      │    │                 │
-          └─────────────────┘    └─────────────────┘    └─────────────────┘
+       ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+       │   GitHub Repo   │───▶│ GitHub Actions  │───▶│   AWS Cloud     │
+       │                 │    │    (CI/CD)      │    │                 │
+       └─────────────────┘    └─────────────────┘    └─────────────────┘
                                          │
        ┌─────────────────────────────────┼──────────────────────────┐
        │                                 │                          │
 ┌──────▼──────┐                   ┌──────▼──────┐            ┌──────▼──────┐
-│     ECR     │                   │     EC2     │            │  DynamoDB   │
-│  (Docker)   │                   │    (Apps)   │            │ (Database)  │
+│ CloudFront  │                   │     EC2     │            │   DynamoDB  │
+│    (CDN)    │◄──────────────────┤    (Apps)   │            │ (Database)  │
 └─────────────┘                   └─────────────┘            └─────────────┘
-       │
-┌──────▼──────┐
-│ CloudWatch  │
-│(Monitoring) │
-└─────────────┘
-
+       │                                 │
+┌──────▼──────┐                   ┌──────▼──────┐
+│      S3     │                   │ CloudWatch  │
+│  (Logs CF)  │                   │(Monitoring) │
+└─────────────┘                   └─────────────┘
 ```
 
 ## 📋 Prérequis
@@ -294,10 +294,12 @@ Il est important de noter que :
 
 ### Composants AWS
 - **EC2** : Instance t2.micro avec Amazon Linux 2
+- **CloudFront** : CDN global avec 100+ edge locations
 - **DynamoDB** : Base de données NoSQL pour les données d'application
 - **ECR** : Registre Docker privé pour les images
 - **IAM** : Rôles et politiques pour la sécurité
 - **CloudWatch** : Monitoring et logs centralisés
+- **S3** : Stockage des logs CloudFront
 - **Secrets Manager** : Gestion sécurisée des secrets
 - **Systems Manager** : Accès sécurisé aux instances sans SSH
 
