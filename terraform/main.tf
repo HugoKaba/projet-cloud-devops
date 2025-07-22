@@ -11,20 +11,39 @@ provider "aws" {
   region = var.aws_region
 }
 
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+  
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  }
+  
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
 resource "aws_instance" "app_server" {
-  ami           = "ami-0d64bb532e0502c46"
-  instance_type = "t2.micro"
-  key_name      = "hugo-iim-key" 
+  ami                    = data.aws_ami.amazon_linux.id
+  instance_type          = "t2.micro"
+  iam_instance_profile   = aws_iam_instance_profile.ec2_ssm_profile.name
   
   vpc_security_group_ids = [aws_security_group.app_sg.id]
   
   user_data = <<-EOF
               #!/bin/bash
               yum update -y
-              amazon-linux-extras install docker
+              amazon-linux-extras install docker -y
               service docker start
               usermod -a -G docker ec2-user
               yum install -y aws-cli
+              
+              yum install -y amazon-ssm-agent
+              systemctl enable amazon-ssm-agent
+              systemctl start amazon-ssm-agent
               EOF
   
   tags = {
@@ -40,6 +59,7 @@ resource "aws_security_group" "app_sg" {
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+    description = "HTTP"
   }
   
   ingress {
@@ -47,32 +67,27 @@ resource "aws_security_group" "app_sg" {
     to_port     = 3001
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+    description = "Applications React/Node.js"
   }
-  
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = -1
-    to_port     = -1
-    protocol    = "icmp"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "Allow ping requests"
-  }
-  
+    
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+    description = "All outbound traffic"
+  }
+  
+  tags = {
+    Name = "IIM-Project-Security-Group"
   }
 }
 
 resource "aws_eip" "app_eip" {
   instance = aws_instance.app_server.id
   domain   = "vpc"
+  
+  tags = {
+    Name = "IIM-Project-EIP"
+  }
 }
