@@ -100,3 +100,9 @@ terraform.rc
 # 5. GITHUB ACTIONS
 ######################################
 .github/*-token
+
+######################################
+# 6. SESSION MANAGER (SSM)
+######################################
+sessionmanager-bundle/*
+sessionmanager-bundle.zip
