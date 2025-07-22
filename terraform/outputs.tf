@@ -17,3 +17,23 @@ output "ssm_connection_command" {
   description = "Command to connect via SSM"
   value       = "aws ssm start-session --target ${aws_instance.app_server.id}"
 }
+
+output "application_url" {
+  description = "URL of the deployed application"
+  value       = "http://${aws_eip.app_eip.public_ip}"
+}
+
+output "api_health_url" {
+  description = "API health check endpoint"
+  value       = "http://${aws_eip.app_eip.public_ip}/api/health"
+}
+
+output "dynamodb_table_name" {
+  description = "Name of the DynamoDB table"
+  value       = aws_dynamodb_table.app_table.name
+}
+
+output "cloudwatch_dashboard_url" {
+  description = "CloudWatch Dashboard URL"
+  value       = "https://console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${aws_cloudwatch_dashboard.main.dashboard_name}"
+}

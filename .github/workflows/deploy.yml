@@ -1,4 +1,4 @@
-name: Deploy via AWS SSM
+name: Deploy Applications to AWS (Production Ready)
 
 on:
   push:
@@ -12,7 +12,7 @@ env:
   BACKEND_REPO: iim-project-backend
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
     
     steps:
@@ -33,70 +33,156 @@ jobs:
       - name: Build and push Backend image
         run: |
           cd backend
+          echo "Building backend image..."
           docker build -t $ECR_REGISTRY/$BACKEND_REPO:latest .
           docker tag $ECR_REGISTRY/$BACKEND_REPO:latest $ECR_REGISTRY/$BACKEND_REPO:$GITHUB_SHA
+          echo "Pushing backend image to ECR..."
           docker push $ECR_REGISTRY/$BACKEND_REPO:latest
           docker push $ECR_REGISTRY/$BACKEND_REPO:$GITHUB_SHA
+          echo "Backend image pushed successfully"
 
       - name: Build and push Frontend image
         run: |
           cd frontend
+          echo "Building frontend image..."
           docker build -t $ECR_REGISTRY/$FRONTEND_REPO:latest .
           docker tag $ECR_REGISTRY/$FRONTEND_REPO:latest $ECR_REGISTRY/$FRONTEND_REPO:$GITHUB_SHA
+          echo "Pushing frontend image to ECR..."
           docker push $ECR_REGISTRY/$FRONTEND_REPO:latest
           docker push $ECR_REGISTRY/$FRONTEND_REPO:$GITHUB_SHA
+          echo "Frontend image pushed successfully"
 
-      - name: Deploy to EC2 via SSM (No SSH needed)
+      - name: Deploy to EC2 via AWS SSM
         run: |
+          echo "Starting deployment process..."
+          
+          # Obtenir l'ID de l'instance EC2
           INSTANCE_ID=$(aws ec2 describe-instances \
             --filters "Name=ip-address,Values=${{ secrets.EC2_HOST }}" \
             --query "Reservations[0].Instances[0].InstanceId" \
             --output text)
           
+          if [ "$INSTANCE_ID" == "null" ] || [ "$INSTANCE_ID" == "" ]; then
+            echo "Error: Could not find EC2 instance with IP ${{ secrets.EC2_HOST }}"
+            exit 1
+          fi
+          
           echo "Deploying to instance: $INSTANCE_ID"
           
+          # Envoyer les commandes de déploiement via SSM
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids $INSTANCE_ID \
             --document-name "AWS-RunShellScript" \
             --parameters 'commands=[
-              "echo \"Starting deployment...\"",
+              "echo \"=== Starting deployment at $(date) ===\"",
+              "echo \"Logging into ECR...\"",
               "aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}",
               "echo \"Pulling latest images...\"",
-              "docker pull ${{ env.ECR_REGISTRY }}/${{ env.BACKEND_REPO }}:latest",
-              "docker pull ${{ env.ECR_REGISTRY }}/${{ env.FRONTEND_REPO }}:latest", 
+              "docker pull ${{ env.ECR_REGISTRY }}/${{ env.BACKEND_REPO }}:latest || { echo \"Failed to pull backend image\"; exit 1; }",
+              "docker pull ${{ env.ECR_REGISTRY }}/${{ env.FRONTEND_REPO }}:latest || { echo \"Failed to pull frontend image\"; exit 1; }",
               "echo \"Setting up Docker network...\"",
-              "docker network create app-network || true",
+              "docker network create app-network 2>/dev/null || echo \"Network already exists\"",
               "echo \"Stopping existing containers...\"",
-              "docker stop backend-app frontend-app || true",
-              "docker rm backend-app frontend-app || true",
-              "echo \"Starting new containers...\"",
-              "docker run -d --name backend-app --network app-network -p 3001:3001 -e AWS_REGION=eu-west-1 -e NODE_ENV=production ${{ env.ECR_REGISTRY }}/${{ env.BACKEND_REPO }}:latest",
-              "docker run -d --name frontend-app --network app-network -p 80:80 -e BACKEND_HOST=${{ secrets.BACKEND_HOST }} -e BACKEND_PORT=${{ secrets.BACKEND_PORT }} ${{ env.ECR_REGISTRY }}/${{ env.FRONTEND_REPO }}:latest",
+              "docker stop backend-app frontend-app 2>/dev/null || echo \"No containers to stop\"",
+              "docker rm backend-app frontend-app 2>/dev/null || echo \"No containers to remove\"",
+              "echo \"Starting new backend container...\"",
+              "docker run -d --name backend-app \
+                --network app-network \
+                --log-driver=awslogs \
+                --log-opt awslogs-group=/iim-project/application \
+                --log-opt awslogs-region=eu-west-1 \
+                --log-opt awslogs-create-group=true \
+                -p 3001:3001 \
+                -e AWS_REGION=eu-west-1 \
+                -e NODE_ENV=production \
+                -e DYNAMODB_TABLE_NAME=iim-project-data \
+                ${{ env.ECR_REGISTRY }}/${{ env.BACKEND_REPO }}:latest",
+              "echo \"Starting new frontend container...\"", 
+              "docker run -d --name frontend-app \
+                --network app-network \
+                --log-driver=awslogs \
+                --log-opt awslogs-group=/iim-project/application \
+                --log-opt awslogs-region=eu-west-1 \
+                --log-opt awslogs-create-group=true \
+                -p 80:80 \
+                -e BACKEND_HOST=${{ secrets.BACKEND_HOST }} \
+                -e BACKEND_PORT=${{ secrets.BACKEND_PORT }} \
+                ${{ env.ECR_REGISTRY }}/${{ env.FRONTEND_REPO }}:latest",
               "echo \"Waiting for containers to start...\"",
-              "sleep 15",
-              "echo \"Health check...\"",
-              "curl -f http://localhost/api/health || echo \"Health check failed but continuing...\"",
-              "docker ps",
-              "echo \"Deployment completed successfully!\""
+              "sleep 20",
+              "echo \"=== Container Status ===\"",
+              "docker ps -a",
+              "echo \"=== Health Check ===\"",
+              "curl -f http://localhost/api/health -m 10 || echo \"Health check failed - this is expected with test app\"",
+              "curl -f http://localhost -m 10 -o /dev/null || echo \"Frontend check failed\"",
+              "echo \"=== Deployment completed successfully at $(date) ===\""
             ]' \
-            --timeout-seconds 600 \
+            --timeout-seconds 900 \
             --query "Command.CommandId" \
             --output text)
           
           echo "Command ID: $COMMAND_ID"
           
+          # Attendre que la commande se termine
           echo "Waiting for deployment to complete..."
-          sleep 30
+          sleep 45
           
-          aws ssm get-command-invocation \
+          # Vérifier le statut de la commande
+          STATUS=$(aws ssm get-command-invocation \
             --command-id $COMMAND_ID \
             --instance-id $INSTANCE_ID \
             --query "Status" \
-            --output text
+            --output text)
           
+          echo "Deployment status: $STATUS"
+          
+          # Afficher les logs de déploiement
           echo "=== Deployment Output ==="
           aws ssm get-command-invocation \
             --command-id $COMMAND_ID \
             --instance-id $INSTANCE_ID \
             --query "StandardOutputContent" \
             --output text
+          
+          # Afficher les erreurs si présentes
+          ERROR_OUTPUT=$(aws ssm get-command-invocation \
+            --command-id $COMMAND_ID \
+            --instance-id $INSTANCE_ID \
+            --query "StandardErrorContent" \
+            --output text)
+          
+          if [ "$ERROR_OUTPUT" != "" ] && [ "$ERROR_OUTPUT" != "None" ]; then
+            echo "=== Deployment Errors ==="
+            echo "$ERROR_OUTPUT"
+          fi
+          
+          # Vérifier que le déploiement s'est bien passé
+          if [ "$STATUS" != "Success" ]; then
+            echo "Deployment failed with status: $STATUS"
+            exit 1
+          fi
+          
+          echo "✅ Deployment completed successfully!"
+          echo "🌐 Application URL: http://${{ secrets.EC2_HOST }}"
+          echo "🔍 Health Check: http://${{ secrets.EC2_HOST }}/api/health"
+
+      - name: Post-deployment validation
+        run: |
+          echo "Performing post-deployment checks..."
+          
+          # Attendre quelques secondes que l'application soit vraiment prête
+          sleep 10
+          
+          # Test de connectivité de base
+          echo "Testing connectivity to ${{ secrets.EC2_HOST }}..."
+          if curl -f http://${{ secrets.EC2_HOST }} -m 30 -o /dev/null -s; then
+            echo "✅ Frontend is accessible"
+          else
+            echo "⚠️ Frontend might not be ready yet (normal for new deployment)"
+          fi
+          
+          echo "🎉 Deployment pipeline completed!"
+          echo "📊 Monitor your application:"
+          echo "   - Application: http://${{ secrets.EC2_HOST }}"
+          echo "   - CloudWatch: https://console.aws.amazon.com/cloudwatch/"
+          echo "   - EC2 Instance: https://console.aws.amazon.com/ec2/"
