@@ -1,0 +1,5 @@
+bucket         = "hugo-terraform-state-prod"
+key            = "prod/terraform.tfstate"   
+region         = "eu-west-1"                
+dynamodb_table = "terraform-state-lock-prod"
+encrypt        = true
