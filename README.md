@@ -65,9 +65,15 @@ Ce projet implémente une architecture Cloud DevOps complète avec :
 └─────────────┘                   └─────────────┘
 ```
 
+![CloudFront CDN](./docs/cloud_front.png)
+![EC2 Instance](./docs/ec2.png)
+![DynamoDB Database](./docs/dynamo_db.png)
+![S3 Storage](./docs/s3.png)
+
 ## 📋 Prérequis
 
 ### Comptes et accès requis
+
 - **Compte AWS** avec Free Tier activé
 - **Compte GitHub** pour le repository et les Actions
 - **AWS CLI** configuré avec vos identifiants
@@ -78,6 +84,7 @@ Ce projet implémente une architecture Cloud DevOps complète avec :
 ## 🛠️ Installation et configuration
 
 ### 1. Cloner le repository
+
 ```
 
 git clone https://github.com/HugoKaba/projet-cloud-devops.git
@@ -85,6 +92,7 @@ cd projet-cloud-devops
 ```
 
 ### 2. Structure du projet
+
 ```
 
 projet-cloud-devops/
@@ -115,6 +123,7 @@ projet-cloud-devops/
 ```
 
 ### 3. Configuration AWS
+
 ```
 
 
@@ -135,6 +144,7 @@ aws configure
 ## 🚀 Déploiement local
 
 ### 1. Test en local avec Docker Compose
+
 ```
 
 
@@ -157,6 +167,7 @@ docker-compose down
 ```
 
 ### 2. Accès local
+
 - **Frontend** : http://localhost:3000
 - **Backend API** : http://localhost:3001/api/health
 
@@ -193,14 +204,14 @@ terraform output
 
 Allez dans **Settings → Secrets and variables → Actions** de votre repository GitHub et ajoutez :
 
-| Nom du secret | Valeur | Description |
-|---------------|--------|-------------|
-| `AWS_ACCESS_KEY_ID` | Votre clé d'accès AWS | Authentification AWS |
-| `AWS_SECRET_ACCESS_KEY` | Votre clé secrète AWS | Authentification AWS |
-| `AWS_ACCOUNT_ID` | ID de votre compte AWS | Accès ECR |
-| `EC2_HOST` | IP publique de votre instance | Adresse de déploiement |
-| `BACKEND_HOST` | IP publique de votre instance | Configuration frontend |
-| `BACKEND_PORT` | `3001` | Port du backend |
+| Nom du secret           | Valeur                        | Description            |
+| ----------------------- | ----------------------------- | ---------------------- |
+| `AWS_ACCESS_KEY_ID`     | Votre clé d'accès AWS         | Authentification AWS   |
+| `AWS_SECRET_ACCESS_KEY` | Votre clé secrète AWS         | Authentification AWS   |
+| `AWS_ACCOUNT_ID`        | ID de votre compte AWS        | Accès ECR              |
+| `EC2_HOST`              | IP publique de votre instance | Adresse de déploiement |
+| `BACKEND_HOST`          | IP publique de votre instance | Configuration frontend |
+| `BACKEND_PORT`          | `3001`                        | Port du backend        |
 
 ### 3. Déploiement automatique
 
@@ -214,6 +225,7 @@ git push origin main
 ```
 
 Le pipeline GitHub Actions va automatiquement :
+
 1. **Builder** les images Docker
 2. **Les pousser** vers ECR
 3. **Se connecter** à l'instance EC2 via Session Manager
@@ -236,9 +248,13 @@ terraform output instance_ip
 
 ```
 
+![Application Todo List](./docs/photo_1_projet.png)
+![Application Todo List](./docs/photo_2_projet.png)
+
 ## 📊 Surveillance et monitoring
 
 ### 1. CloudWatch Dashboard
+
 ```
 
 
@@ -248,7 +264,10 @@ https://console.aws.amazon.com/cloudwatch/home?region=eu-west-1\#dashboards:name
 
 ```
 
+![CloudWatch Monitoring](./docs/cloud_watch.png)
+
 ### 2. Logs des applications
+
 ```
 
 
@@ -266,6 +285,7 @@ docker logs backend-app
 ```
 
 ### 3. Métriques personnalisées
+
 - **Backend metrics** : http://VOTRE_IP/api/metrics
 - **CloudWatch metrics** : CPU, Network, Memory
 - **Application metrics** : Uptime, Request count, Errors
@@ -275,19 +295,25 @@ docker logs backend-app
 Dans ce projet, j'ai utilisé l'intelligence artificielle de manière ciblée pour améliorer deux aspects spécifiques **après avoir terminé l'application fonctionnelle** :
 
 ### 🎨 Amélioration du style frontend
+
 Une fois l'application React entièrement développée et fonctionnelle, j'ai utilisé l'IA pour :
+
 - **Optimiser le CSS** : Amélioration de l'interface utilisateur avec des animations et transitions
 - **Responsive design** : Adaptation mobile-first pour une meilleure expérience utilisateur
 - **Couleurs et thèmes** : Harmonisation de la palette de couleurs et amélioration de l'accessibilité
 
 ### 📋 Amélioration des logs CI/CD
+
 Pour rendre le pipeline plus professionnel et plus lisible, l'IA m'a aidé à :
+
 - **Formater les logs** : Ajout d'emojis et de couleurs pour une meilleure lisibilité
 - **Messages informatifs** : Amélioration des messages de status et de progression
 - **Gestion d'erreurs** : Messages d'erreur plus explicites et solutions suggérées
 
 ### 💡 Approche méthodologique
+
 Il est important de noter que :
+
 - **L'architecture complète** a été conçue et développée manuellement
 - **Toute la logique métier** (API, base de données, infrastructure) a été écrite sans assistance
 - **L'IA n'a été utilisée qu'en finition** pour l'amélioration esthétique ,expérience utilisateur et optimiser le code, afin de rendre le projet public et bien structurer
@@ -295,6 +321,7 @@ Il est important de noter que :
 ## 🏗️ Architecture détaillée
 
 ### Composants AWS
+
 - **EC2** : Instance t2.micro avec Amazon Linux 2
 - **CloudFront** : CDN global avec 100+ edge locations
 - **DynamoDB** : Base de données NoSQL pour les données d'application
@@ -306,12 +333,16 @@ Il est important de noter que :
 - **Systems Manager** : Accès sécurisé aux instances sans SSH
 
 ### Sécurité
+
 - **Aucune clé SSH** : Utilisation exclusive de Session Manager
 - **IAM Roles** : Permissions granulaires par service
 - **Secrets masqués** : Aucun secret visible dans les logs
 - **HTTPS ready** : Architecture préparée pour SSL/TLS
 
+![Autorisation IAM](./docs/autorisation_role_iam.png)
+
 ### Pipeline CI/CD
+
 1. **Tests automatisés** : Validation du code backend et frontend
 2. **Trigger** : Push sur la branche main
 3. **Build** : Construction des images Docker (seulement si tests passent)
@@ -320,9 +351,14 @@ Il est important de noter que :
 6. **Health check** : Validation automatique post-déploiement
 7. **Notification** : Status dans GitHub Actions
 
+![GitHub Actions Pipeline](./docs/github_actions.png)
+![ECR Instance](./docs/instance_ecr.png)
+![CI/CD Global Screen](./docs/screen_ci_global.png)
+
 ## 🧪 Tests automatisés
 
 ### Suite de tests complète
+
 Le projet inclut une suite de tests automatisés qui s'exécutent à chaque push vers la branche main :
 
 - **Tests Backend** : 8 tests unitaires et d'intégration couvrant tous les endpoints API
@@ -332,33 +368,38 @@ Le projet inclut une suite de tests automatisés qui s'exécutent à chaque push
 ### Types de tests implémentés
 
 #### Tests Backend (Node.js)
+
 - **Tests d'API REST** : Validation de tous les endpoints (`/api/health`, `/api/todos`, `/api/metrics`)
 - **Tests de gestion d'erreurs** : Validation des codes d'erreur 400, 404, 500
 - **Mocks DynamoDB** : Tests isolés avec aws-sdk-mock
 - **Tests de validation** : Vérification des schémas de données
 
 #### Tests Frontend (React)
+
 - **Tests de composants** : Rendu des éléments principaux
 - **Tests d'interaction** : Formulaires et boutons
 - **Tests d'intégration** : Communication avec l'API backend
 - **Tests d'erreurs** : Gestion gracieuse des erreurs réseau
 
 ### Couverture de code
+
 - **Backend** : Couverture complète des routes API et gestion d'erreurs
 - **Frontend** : Tests des composants principaux et interactions utilisateur
 - **Rapports** : Génération automatique de rapports de couverture
 
 ### Intégration CI/CD
+
 Les tests sont intégrés dans le pipeline GitHub Actions :
+
 1. **Installation** des dépendances Node.js
 2. **Exécution** des tests backend et frontend
 3. **Validation** : Le déploiement ne se fait que si tous les tests passent
 4. **Couverture** : Génération automatique des rapports de couverture
 
-
 ## 🎓 Conclusion
 
 Ce projet est une stack Cloud DevOps moderne avec :
+
 - Infrastructure as Code avec Terraform
 - Containerisation avec Docker
 - Pipeline CI/CD automatisé avec GitHub Actions
