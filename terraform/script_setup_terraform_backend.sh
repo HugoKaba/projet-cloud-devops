@@ -37,7 +37,7 @@ aws dynamodb create-table \
 
 aws dynamodb wait table-exists --table-name $DYNAMODB_TABLE --region $AWS_REGION
 
-cat > terraform/backend/prod.s3.tfbackend << EOF
+cat > terraform/prod.s3.tfbackend << EOF
 bucket         = "$BUCKET_NAME"
 key            = "prod/terraform.tfstate"
 region         = "$AWS_REGION"
