@@ -30,8 +30,8 @@ jobs:
 
       - run: |
           cd terraform
-          terraform init -backend-config=backend/prod.s3.tfbackend
-          
+          terraform init -backend-config=prod.s3.tfbackend
+
       - run: terraform fmt -check
 
       - run: terraform plan -input=false -out=tfplan
