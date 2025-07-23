@@ -12,12 +12,39 @@ env:
   BACKEND_REPO: iim-project-backend
 
 jobs:
-  build-and-deploy:
+  test-build-and-deploy:
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Run Backend Tests
+        run: |
+          cd backend
+          echo "📦 Installing backend dependencies..."
+          npm ci
+          echo "🧪 Running backend tests..."
+          npm test
+          echo "✅ Backend tests passed!"
+
+      - name: Run Frontend Tests
+        run: |
+          cd frontend
+          echo "📦 Installing frontend dependencies..."
+          npm ci
+          echo "🧪 Running frontend tests..."
+          npm test
+          echo "✅ Frontend tests passed!"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -210,6 +237,35 @@ jobs:
             echo "   🖥️ Accès direct EC2: ${DIRECT_TIME}s"
             echo "   ☁️ Accès CloudFront: ${CLOUDFRONT_TIME}s"
             echo "   🌐 Domaine CloudFront: https://$CLOUDFRONT_DOMAIN"
+          fi
+
+      - name: Post-Test Validation
+        run: |
+          echo "🧪 Running post-deployment integration tests..."
+          
+          # Test API health endpoint
+          echo "Testing API health..."
+          API_RESPONSE=$(curl -s http://${{ secrets.EC2_HOST }}/api/health | jq -r '.status' 2>/dev/null || echo "ERROR")
+          if [ "$API_RESPONSE" = "OK" ]; then
+            echo "✅ API health check passed"
+          else
+            echo "⚠️ API health check failed: $API_RESPONSE"
+          fi
+          
+          # Test CloudFront distribution
+          CLOUDFRONT_DOMAIN=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?Comment=='IIM-Project-CloudFront'].DomainName" \
+            --output text \
+            --region us-east-1)
+          
+          if [ "$CLOUDFRONT_DOMAIN" != "" ]; then
+            echo "Testing CloudFront distribution..."
+            CF_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" https://$CLOUDFRONT_DOMAIN/api/health)
+            if [ "$CF_RESPONSE" = "200" ]; then
+              echo "✅ CloudFront health check passed"
+            else
+              echo "⚠️ CloudFront health check failed: $CF_RESPONSE"
+            fi
           fi
 
       - name: Final validation

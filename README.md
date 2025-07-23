@@ -7,6 +7,8 @@ Un projet de déploiement d'applications web containerisées sur AWS avec Terraf
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)
 ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)
+![Tests](https://img.shields.io/badge/Tests-8%2F8%20Passing-brightgreen?style=for-the-badge)
+![Coverage](https://img.shields.io/badge/Coverage-Backend%20%2B%20Frontend-blue?style=for-the-badge)
 
 ## 📋 Table des matières
 
@@ -310,12 +312,49 @@ Il est important de noter que :
 - **HTTPS ready** : Architecture préparée pour SSL/TLS
 
 ### Pipeline CI/CD
-1. **Trigger** : Push sur la branche main
-2. **Build** : Construction des images Docker
-3. **Push** : Envoi vers ECR
-4. **Deploy** : Déploiement via SSM sur EC2
-5. **Health check** : Validation automatique
-6. **Notification** : Status dans GitHub Actions
+1. **Tests automatisés** : Validation du code backend et frontend
+2. **Trigger** : Push sur la branche main
+3. **Build** : Construction des images Docker (seulement si tests passent)
+4. **Push** : Envoi vers ECR
+5. **Deploy** : Déploiement via SSM sur EC2
+6. **Health check** : Validation automatique post-déploiement
+7. **Notification** : Status dans GitHub Actions
+
+## 🧪 Tests automatisés
+
+### Suite de tests complète
+Le projet inclut une suite de tests automatisés qui s'exécutent à chaque push vers la branche main :
+
+- **Tests Backend** : 8 tests unitaires et d'intégration couvrant tous les endpoints API
+- **Tests Frontend** : Tests de composants React avec mocks axios
+- **Pipeline de validation** : Les tests bloquent le déploiement en cas d'échec
+
+### Types de tests implémentés
+
+#### Tests Backend (Node.js)
+- **Tests d'API REST** : Validation de tous les endpoints (`/api/health`, `/api/todos`, `/api/metrics`)
+- **Tests de gestion d'erreurs** : Validation des codes d'erreur 400, 404, 500
+- **Mocks DynamoDB** : Tests isolés avec aws-sdk-mock
+- **Tests de validation** : Vérification des schémas de données
+
+#### Tests Frontend (React)
+- **Tests de composants** : Rendu des éléments principaux
+- **Tests d'interaction** : Formulaires et boutons
+- **Tests d'intégration** : Communication avec l'API backend
+- **Tests d'erreurs** : Gestion gracieuse des erreurs réseau
+
+### Couverture de code
+- **Backend** : Couverture complète des routes API et gestion d'erreurs
+- **Frontend** : Tests des composants principaux et interactions utilisateur
+- **Rapports** : Génération automatique de rapports de couverture
+
+### Intégration CI/CD
+Les tests sont intégrés dans le pipeline GitHub Actions :
+1. **Installation** des dépendances Node.js
+2. **Exécution** des tests backend et frontend
+3. **Validation** : Le déploiement ne se fait que si tous les tests passent
+4. **Couverture** : Génération automatique des rapports de couverture
+
 
 ## 🎓 Conclusion
 

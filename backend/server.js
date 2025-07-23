@@ -231,7 +231,7 @@ app.use((error, req, res, next) => {
 	});
 });
 
-app.use('*', (req, res) => {
+app.use((req, res) => {
 	res.status(404).json({
 		success: false,
 		error: 'Route not found',
@@ -239,10 +239,14 @@ app.use('*', (req, res) => {
 	});
 });
 
-app.listen(port, '0.0.0.0', () => {
-	console.log(`Backend server running on port ${port}`);
-	console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-	console.log(`AWS Region: ${process.env.AWS_REGION || 'eu-west-1'}`);
-	console.log(`DynamoDB Table: ${tableName}`);
-	console.log(`Health check: http://localhost:${port}/api/health`);
-});
+module.exports = app;
+
+if (require.main === module) {
+	app.listen(port, '0.0.0.0', () => {
+		console.log(`Backend server running on port ${port}`);
+		console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+		console.log(`AWS Region: ${process.env.AWS_REGION || 'eu-west-1'}`);
+		console.log(`DynamoDB Table: ${tableName}`);
+		console.log(`Health check: http://localhost:${port}/api/health`);
+	});
+}
