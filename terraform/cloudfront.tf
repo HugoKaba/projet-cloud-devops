@@ -21,7 +21,7 @@ resource "aws_cloudfront_distribution" "app_distribution" {
     forwarded_values {
       query_string = true
       headers      = ["Host", "CloudFront-Forwarded-Proto"]
-      
+
       cookies {
         forward = "none"
       }
@@ -43,7 +43,7 @@ resource "aws_cloudfront_distribution" "app_distribution" {
     forwarded_values {
       query_string = false
       headers      = []
-      
+
       cookies {
         forward = "none"
       }
@@ -65,7 +65,7 @@ resource "aws_cloudfront_distribution" "app_distribution" {
     forwarded_values {
       query_string = true
       headers      = ["*"]
-      
+
       cookies {
         forward = "all"
       }
@@ -89,16 +89,16 @@ resource "aws_cloudfront_distribution" "app_distribution" {
   }
 
   custom_error_response {
-    error_code         = 404
-    response_code      = 200
-    response_page_path = "/index.html"
+    error_code            = 404
+    response_code         = 200
+    response_page_path    = "/index.html"
     error_caching_min_ttl = 300
   }
 
   custom_error_response {
-    error_code         = 403
-    response_code      = 200
-    response_page_path = "/index.html"
+    error_code            = 403
+    response_code         = 200
+    response_page_path    = "/index.html"
     error_caching_min_ttl = 300
   }
 
@@ -134,7 +134,7 @@ resource "aws_s3_bucket_ownership_controls" "cloudfront_logs_ownership" {
 
 resource "aws_s3_bucket_acl" "cloudfront_logs_acl" {
   depends_on = [aws_s3_bucket_ownership_controls.cloudfront_logs_ownership]
-  
+
   bucket = aws_s3_bucket.cloudfront_logs.id
   acl    = "private"
 }
@@ -163,7 +163,7 @@ resource "aws_cloudwatch_metric_alarm" "cloudfront_4xx_error_rate" {
   statistic           = "Average"
   threshold           = "5"
   alarm_description   = "This metric monitors CloudFront 4xx error rate"
-  
+
   dimensions = {
     DistributionId = aws_cloudfront_distribution.app_distribution.id
   }
@@ -183,7 +183,7 @@ resource "aws_cloudwatch_metric_alarm" "cloudfront_5xx_error_rate" {
   statistic           = "Average"
   threshold           = "1"
   alarm_description   = "This metric monitors CloudFront 5xx error rate"
-  
+
   dimensions = {
     DistributionId = aws_cloudfront_distribution.app_distribution.id
   }

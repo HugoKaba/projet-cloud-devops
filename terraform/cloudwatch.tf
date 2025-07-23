@@ -1,7 +1,7 @@
 resource "aws_cloudwatch_log_group" "app_logs" {
   name              = "/iim-project/application"
   retention_in_days = 7
-  
+
   tags = {
     Name        = "IIM-Project-Logs"
     Environment = "production"
@@ -11,7 +11,7 @@ resource "aws_cloudwatch_log_group" "app_logs" {
 resource "aws_cloudwatch_log_group" "container_logs" {
   name              = "/aws/ec2/containers"
   retention_in_days = 3
-  
+
   tags = {
     Name        = "IIM-Project-Container-Logs"
     Environment = "production"
@@ -29,11 +29,11 @@ resource "aws_cloudwatch_metric_alarm" "high_cpu" {
   threshold           = 80
   alarm_description   = "Cette métrique surveille l'utilisation CPU de l'instance EC2"
   alarm_actions       = []
-  
+
   dimensions = {
     InstanceId = aws_instance.app_server.id
   }
-  
+
   tags = {
     Name = "IIM-Project-CPU-Alarm"
   }

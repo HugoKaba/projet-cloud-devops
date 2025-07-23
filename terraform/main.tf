@@ -17,12 +17,12 @@ provider "random" {
 data "aws_ami" "amazon_linux" {
   most_recent = true
   owners      = ["amazon"]
-  
+
   filter {
     name   = "name"
     values = ["amzn2-ami-hvm-*-x86_64-gp2"]
   }
-  
+
   filter {
     name   = "virtualization-type"
     values = ["hvm"]
@@ -30,12 +30,12 @@ data "aws_ami" "amazon_linux" {
 }
 
 resource "aws_instance" "app_server" {
-  ami                    = data.aws_ami.amazon_linux.id
-  instance_type          = "t2.micro"
-  iam_instance_profile   = aws_iam_instance_profile.ec2_ssm_profile.name
-  
+  ami                  = data.aws_ami.amazon_linux.id
+  instance_type        = "t2.micro"
+  iam_instance_profile = aws_iam_instance_profile.ec2_ssm_profile.name
+
   vpc_security_group_ids = [aws_security_group.app_sg.id]
-  
+
   user_data = <<-EOF
               #!/bin/bash
               yum update -y
@@ -48,7 +48,7 @@ resource "aws_instance" "app_server" {
               systemctl enable amazon-ssm-agent
               systemctl start amazon-ssm-agent
               EOF
-  
+
   tags = {
     Name = "IIM-Project-Server"
   }
@@ -56,7 +56,7 @@ resource "aws_instance" "app_server" {
 
 resource "aws_security_group" "app_sg" {
   name_prefix = "iim-project-"
-  
+
   ingress {
     from_port   = 80
     to_port     = 80
@@ -64,7 +64,7 @@ resource "aws_security_group" "app_sg" {
     cidr_blocks = ["0.0.0.0/0"]
     description = "HTTP"
   }
-  
+
   ingress {
     from_port   = 3000
     to_port     = 3001
@@ -72,7 +72,7 @@ resource "aws_security_group" "app_sg" {
     cidr_blocks = ["0.0.0.0/0"]
     description = "Applications React/Node.js"
   }
-    
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -80,7 +80,7 @@ resource "aws_security_group" "app_sg" {
     cidr_blocks = ["0.0.0.0/0"]
     description = "All outbound traffic"
   }
-  
+
   tags = {
     Name = "IIM-Project-Security-Group"
   }
@@ -89,7 +89,7 @@ resource "aws_security_group" "app_sg" {
 resource "aws_eip" "app_eip" {
   instance = aws_instance.app_server.id
   domain   = "vpc"
-  
+
   tags = {
     Name = "IIM-Project-EIP"
   }
