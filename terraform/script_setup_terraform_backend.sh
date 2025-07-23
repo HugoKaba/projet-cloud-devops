@@ -50,4 +50,4 @@ if [ -f terraform.tfstate ]; then
     cp terraform.tfstate terraform.tfstate.backup.$(date +%Y%m%d_%H%M%S)
 fi
 
-terraform init -backend-config=backend/prod.s3.tfbackend
+terraform init -backend-config=/prod.s3.tfbackend
