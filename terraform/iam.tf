@@ -53,28 +53,6 @@ resource "aws_iam_role_policy" "cloudwatch_logs_access" {
   })
 }
 
-resource "aws_iam_role_policy" "secrets_manager_access" {
-  name = "Secrets-Manager-Access-Policy"
-  role = aws_iam_role.ec2_ssm_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "secretsmanager:GetSecretValue",
-          "secretsmanager:DescribeSecret",
-          "secretsmanager:ListSecrets"
-        ]
-        Resource = [
-          "arn:aws:secretsmanager:eu-west-1:615041344700:secret:project-secrets*"
-        ]
-      }
-    ]
-  })
-}
-
 resource "aws_iam_role_policy" "cloudfront_access" {
   name = "CloudFront-Operations-Policy"
   role = aws_iam_role.ec2_ssm_role.id
