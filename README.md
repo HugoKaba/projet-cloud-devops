@@ -126,11 +126,6 @@ Dans **Settings → Secrets and variables → Actions** :
 | `AWS_ACCESS_KEY_ID`     | Votre clé d'accès AWS         | Authentification AWS   |
 | `AWS_SECRET_ACCESS_KEY` | Votre clé secrète AWS         | Authentification AWS   |
 | `AWS_ACCOUNT_ID`        | ID de votre compte AWS        | Accès ECR              |
-| `EC2_HOST`              | IP publique de votre instance | Adresse de déploiement |
-| `BACKEND_HOST`          | IP publique de votre instance | Configuration frontend |
-| `BACKEND_PORT`          | `3001`                        | Port du backend        |
-| `TF_DYNAMODB_TABLE`     | `terraform-lock-prod`         | Table DynamoDB pour verrouillage Terraform |
-| `TF_STATE_BUCKET`       | `terraform-state-(le timestamp renvoyer par le script)`        | Bucket S3 pour l'état Terraform |
 
 #### 5. Déploiement automatique
 

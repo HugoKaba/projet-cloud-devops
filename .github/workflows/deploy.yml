@@ -99,26 +99,40 @@ jobs:
 
       - name: Deploy to EC2 via AWS SSM
         run: |
-          INSTANCE_ID=$(aws ec2 describe-instances \
-            --filters "Name=ip-address,Values=${{ secrets.EC2_HOST }}" \
-            --query "Reservations[0].Instances[0].InstanceId" \
-            --output text)
+          cd terraform
+          INSTANCE_ID=$(terraform output -raw instance_id)
+          INSTANCE_IP=$(terraform output -raw instance_ip)
           
           if [ "$INSTANCE_ID" == "null" ] || [ "$INSTANCE_ID" == "" ]; then
             exit 1
           fi
           
+          aws ec2 wait instance-running --instance-ids $INSTANCE_ID
+          
+          for i in {1..20}; do
+            SSM_STATUS=$(aws ssm describe-instance-information \
+              --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
+              --query "InstanceInformationList[0].PingStatus" \
+              --output text 2>/dev/null || echo "null")
+            
+            if [ "$SSM_STATUS" = "Online" ]; then
+              break
+            fi
+            
+            sleep 15
+          done
+          
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids $INSTANCE_ID \
             --document-name "AWS-RunShellScript" \
-            --parameters 'commands=[
-              "aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}",
-              "docker pull ${{ env.ECR_REGISTRY }}/${{ env.BACKEND_REPO }}:latest || exit 1",
-              "docker pull ${{ env.ECR_REGISTRY }}/${{ env.FRONTEND_REPO }}:latest || exit 1",
-              "docker network create app-network 2>/dev/null || true",
-              "docker stop backend-app frontend-app 2>/dev/null || true",
-              "docker rm backend-app frontend-app 2>/dev/null || true",
-              "docker run -d --name backend-app \
+            --parameters "commands=[
+              'aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}',
+              'docker pull ${{ env.ECR_REGISTRY }}/${{ env.BACKEND_REPO }}:latest || exit 1',
+              'docker pull ${{ env.ECR_REGISTRY }}/${{ env.FRONTEND_REPO }}:latest || exit 1',
+              'docker network create app-network 2>/dev/null || true',
+              'docker stop backend-app frontend-app 2>/dev/null || true',
+              'docker rm backend-app frontend-app 2>/dev/null || true',
+              'docker run -d --name backend-app \
                 --restart unless-stopped \
                 --network app-network \
                 -p 3001:3001 \
@@ -126,19 +140,19 @@ jobs:
                 -e NODE_ENV=production \
                 -e DYNAMODB_TABLE_NAME=iim-project-data \
                 -e PORT=3001 \
-                ${{ env.ECR_REGISTRY }}/${{ env.BACKEND_REPO }}:latest",
-              "docker run -d --name frontend-app \
+                ${{ env.ECR_REGISTRY }}/${{ env.BACKEND_REPO }}:latest',
+              'docker run -d --name frontend-app \
                 --restart unless-stopped \
                 --network app-network \
                 -p 80:80 \
-                -e BACKEND_HOST=${{ secrets.BACKEND_HOST }} \
-                -e BACKEND_PORT=${{ secrets.BACKEND_PORT }} \
-                ${{ env.ECR_REGISTRY }}/${{ env.FRONTEND_REPO }}:latest",
-              "sleep 25",
-              "docker ps -a --format \"table {{.Names}}\\t{{.Status}}\\t{{.Ports}}\"",
-              "curl -f http://localhost:3001/api/health -m 15 || true",
-              "curl -f http://localhost -m 15 -o /dev/null -s || true"
-            ]' \
+                -e BACKEND_HOST=$INSTANCE_IP \
+                -e BACKEND_PORT=3001 \
+                ${{ env.ECR_REGISTRY }}/${{ env.FRONTEND_REPO }}:latest',
+              'sleep 25',
+              'docker ps -a --format \"table {{.Names}}\\t{{.Status}}\\t{{.Ports}}\"',
+              'curl -f http://localhost:3001/api/health -m 15 || true',
+              'curl -f http://localhost -m 15 -o /dev/null -s || true'
+            ]" \
             --timeout-seconds 900 \
             --query "Command.CommandId" \
             --output text)
@@ -194,7 +208,10 @@ jobs:
 
       - name: Performance Testing
         run: |
-          DIRECT_TIME=$(curl -o /dev/null -s -w '%{time_total}\n' http://${{ secrets.EC2_HOST }}/api/health || echo "timeout")
+          cd terraform
+          INSTANCE_IP=$(terraform output -raw instance_ip)
+          
+          DIRECT_TIME=$(curl -o /dev/null -s -w '%{time_total}\n' http://$INSTANCE_IP/api/health || echo "timeout")
           
           sleep 30
           
@@ -209,7 +226,10 @@ jobs:
 
       - name: Post-Test Validation
         run: |
-          API_RESPONSE=$(curl -s http://${{ secrets.EC2_HOST }}/api/health | jq -r '.status' 2>/dev/null || echo "ERROR")
+          cd terraform
+          INSTANCE_IP=$(terraform output -raw instance_ip)
+          
+          API_RESPONSE=$(curl -s http://$INSTANCE_IP/api/health | jq -r '.status' 2>/dev/null || echo "ERROR")
           
           CLOUDFRONT_DOMAIN=$(aws cloudfront list-distributions \
             --query "DistributionList.Items[?Comment=='IIM-Project-CloudFront'].DomainName" \
@@ -222,7 +242,11 @@ jobs:
 
       - name: Final validation
         run: |
+          cd terraform
+          INSTANCE_IP=$(terraform output -raw instance_ip)
+          
           sleep 15
           
-          curl -f http://${{ secrets.EC2_HOST }}/api/health -m 30 -s || true
-          curl -f http://${{ secrets.EC2_HOST }} -m 30 -o /dev/null -s || true
+          curl -f http://$INSTANCE_IP/api/health -m 30 -s || true
+          curl -f http://$INSTANCE_IP -m 30 -o /dev/null -s || true
+
