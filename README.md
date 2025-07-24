@@ -48,24 +48,7 @@ Ce projet implémente une architecture Cloud DevOps complète avec :
 
 ## 🏗️ Architecture
 
-```
-       ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-       │   GitHub Repo   │───▶│ GitHub Actions  │───▶│   AWS Cloud     │
-       │                 │    │    (CI/CD)      │    │                 │
-       └─────────────────┘    └─────────────────┘    └─────────────────┘
-                                         │
-       ┌─────────────────────────────────┼──────────────────────────┐
-       │                                 │                          │
-┌──────▼──────┐                   ┌──────▼──────┐            ┌──────▼──────┐
-│ CloudFront  │                   │     EC2     │            │   DynamoDB  │
-│    (CDN)    │◄──────────────────┤    (Apps)   │            │ (Database)  │
-└─────────────┘                   └─────────────┘            └─────────────┘
-       │                                 │
-┌──────▼──────┐                   ┌──────▼──────┐
-│      S3     │                   │ CloudWatch  │
-│  (Logs CF)  │                   │(Monitoring) │
-└─────────────┘                   └─────────────┘
-```
+![Architecture Globale](./docs/archi.png)
 
 ![CloudFront CDN](./docs/cloud_front.png)
 ![EC2 Instance](./docs/ec2.png)
@@ -128,10 +111,15 @@ Dans **Settings → Secrets and variables → Actions** :
 | `AWS_ACCOUNT_ID`        | ID de votre compte AWS        | Accès ECR              |
 
 #### 5. Déploiement automatique
-
+```
+git checkout -b deploy
+git push --set-upstream origin deploy
 git add .
 git commit -m "Ready to deploy"
 git push
+```
+puis créer une Pull Request vers `main` dans GitHub. Et la merge pour déclencher le pipeline CI/CD.
+
 
 **C'est tout !** Le pipeline GitHub Actions déploie automatiquement :
 - Infrastructure Terraform (EC2, CloudFront, DynamoDB, etc.)
