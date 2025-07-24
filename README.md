@@ -77,6 +77,7 @@ Ce projet implémente une architecture Cloud DevOps complète avec :
 ### Comptes et accès requis
 
 - **Compte AWS** avec Free Tier activé
+- **VPC par défaut** europeen (eu-west-1)
 - **Compte GitHub** pour le repository et les Actions
 - **AWS CLI** configuré avec vos identifiants
 - **Terraform** installé (version >= 1.0)
@@ -101,6 +102,8 @@ aws configure
 # Entrez vos identifiants AWS
 # Default region name: eu-west-1
 # Default output format: json
+si pas de vpc par défaut, créer un VPC dans la région eu-west-1
+aws ec2 create-default-vpc --region eu-west-1
 ```
 
 #### 3. Setup du backend Terraform (une seule fois)
@@ -287,7 +290,7 @@ Il est important de noter que :
   - Rotation automatique des credentials via Instance Profile
 
 - **Secrets Manager** : Gestion sécurisée des secrets
-  - Secret : `iim-project-secrets` avec rotation automatique
+  - Secret : `project-secrets` avec rotation automatique
   - Chiffrement avec clés AWS KMS
   - Accès contrôlé via IAM policies
 

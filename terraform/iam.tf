@@ -68,7 +68,7 @@ resource "aws_iam_role_policy" "secrets_manager_access" {
           "secretsmanager:ListSecrets"
         ]
         Resource = [
-          "arn:aws:secretsmanager:eu-west-1:615041344700:secret:iim-project-secrets*"
+          "arn:aws:secretsmanager:eu-west-1:615041344700:secret:project-secrets*"
         ]
       }
     ]

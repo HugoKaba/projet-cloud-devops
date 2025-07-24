@@ -1,5 +1,5 @@
 resource "aws_secretsmanager_secret" "app_secrets" {
-  name        = "iim-project-secrets"
+  name        = "project-secrets"
   description = "Application secrets for IIM project"
 }
 
