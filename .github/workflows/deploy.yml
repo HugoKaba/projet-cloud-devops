@@ -103,6 +103,10 @@ jobs:
           docker push $ECR_REGISTRY/$FRONTEND_REPO:latest
           docker push $ECR_REGISTRY/$FRONTEND_REPO:$GITHUB_SHA
 
+      - name: Terraform Init (output)
+        run: terraform init -backend-config=prod.s3.tfbackend
+        working-directory: terraform
+
       - name: Deploy to EC2 via AWS SSM
         run: |
           cd terraform
