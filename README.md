@@ -35,6 +35,8 @@ Ce projet implémente une architecture Cloud DevOps complète avec :
 - **CDN Global** : CloudFront pour performance mondiale
 - **Sécurité avancée** : AWS IAM Roles + Session Manager
 - **Monitoring** : CloudWatch avec dashboard et alertes
+- **Terraform Backend** : S3 + DynamoDB pour l'état Terraform
+- **Tests automatisés** : Suite de tests pour le backend et le frontend
 
 ### 🏆 Innovations techniques
 
@@ -80,16 +82,64 @@ Ce projet implémente une architecture Cloud DevOps complète avec :
 - **Terraform** installé (version >= 1.0)
 - **Docker** installé et fonctionnel
 - **Node.js** (version >= 18) pour le développement local
+  
+## 🚀 Déploiement automatisé
 
-## 🛠️ Installation et configuration
+### Processus one-click pour fork du projet
 
-### 1. Cloner le repository
+Si quelqu'un souhaite déployer votre projet, voici le processus simplifié :
 
+#### 1. Fork et clone
 ```
-
-git clone https://github.com/HugoKaba/projet-cloud-devops.git
+git clone <votre-fork>
 cd projet-cloud-devops
 ```
+
+#### 2. Configurer AWS CLI
+```
+aws configure
+# Entrez vos identifiants AWS
+# Default region name: eu-west-1
+# Default output format: json
+```
+
+#### 3. Setup du backend Terraform (une seule fois)
+```
+chmod +x setup_backend.sh
+./setup_backend.sh
+```
+Le script configure automatiquement :
+- Bucket S3 pour l'état Terraform (avec chiffrement)
+- Table DynamoDB pour le verrouillage
+- Fichier `prod.s3.tfbackend` avec les bonnes valeurs
+- Initialisation du backend Terraform
+
+#### 4. Configuration des secrets GitHub
+
+Dans **Settings → Secrets and variables → Actions** :
+
+| Nom du secret           | Valeur                        | Description            |
+| ----------------------- | ----------------------------- | ---------------------- |
+| `AWS_ACCESS_KEY_ID`     | Votre clé d'accès AWS         | Authentification AWS   |
+| `AWS_SECRET_ACCESS_KEY` | Votre clé secrète AWS         | Authentification AWS   |
+| `AWS_ACCOUNT_ID`        | ID de votre compte AWS        | Accès ECR              |
+| `EC2_HOST`              | IP publique de votre instance | Adresse de déploiement |
+| `BACKEND_HOST`          | IP publique de votre instance | Configuration frontend |
+| `BACKEND_PORT`          | `3001`                        | Port du backend        |
+| `TF_DYNAMODB_TABLE`     | `terraform-lock-prod`         | Table DynamoDB pour verrouillage Terraform |
+| `TF_STATE_BUCKET`       | `terraform-state-(le timestamp renvoyer par le script)`        | Bucket S3 pour l'état Terraform |
+
+#### 5. Déploiement automatique
+
+git add .
+git commit -m "Ready to deploy"
+git push
+
+**C'est tout !** Le pipeline GitHub Actions déploie automatiquement :
+- Infrastructure Terraform (EC2, CloudFront, DynamoDB, etc.)
+- Images Docker vers ECR
+- Applications sur EC2 via Session Manager
+- Configuration réseau et sécurité
 
 ### 2. Structure du projet
 
@@ -109,6 +159,8 @@ projet-cloud-devops/
 │   └── src/
 ├── terraform/             \# Infrastructure as Code
 │   ├── main.tf
+│   ├── prod.s3.tfbackend  \# Backend S3 pour l'état Terraform
+│   ├── backend.tf
 │   ├── variables.tf
 │   ├── outputs.tf
 │   ├── iam.tf
@@ -118,139 +170,10 @@ projet-cloud-devops/
 │   └── ecr.tf
 ├── docker-compose.yml     \# Développement local
 ├── .gitignore
+├── setup_terraform_backend.sh \# Script de setup backend Terraform
 └── README.md
 
 ```
-
-### 3. Configuration AWS
-
-```
-
-
-# Configurer AWS CLI
-
-aws configure
-
-# AWS Access Key ID: VOTRE_ACCESS_KEY
-
-# AWS Secret Access Key: VOTRE_SECRET_KEY
-
-# Default region name: eu-west-1
-
-# Default output format: json
-
-```
-
-## 🚀 Déploiement local
-
-### 1. Test en local avec Docker Compose
-
-```
-
-
-# Construire et démarrer les services
-
-docker-compose up --build
-
-# En arrière-plan
-
-docker-compose up --build -d
-
-# Voir les logs
-
-docker-compose logs -f
-
-# Arrêter les services
-
-docker-compose down
-
-```
-
-### 2. Accès local
-
-- **Frontend** : http://localhost:3000
-- **Backend API** : http://localhost:3001/api/health
-
-## ☁️ Déploiement sur AWS
-
-### 1. Déploiement de l'infrastructure Terraform
-
-```
-# Aller dans le dossier terraform
-
-cd terraform
-
-# Initialiser Terraform
-
-terraform init
-
-# Vérifier le plan de déploiement
-
-terraform plan
-
-# Déployer l'infrastructure
-
-terraform apply
-
-# Tapez "yes" pour confirmer
-
-# Voir les outputs (IP publique, instance ID, etc.)
-
-terraform output
-
-```
-
-### 2. Configuration des secrets GitHub
-
-Allez dans **Settings → Secrets and variables → Actions** de votre repository GitHub et ajoutez :
-
-| Nom du secret           | Valeur                        | Description            |
-| ----------------------- | ----------------------------- | ---------------------- |
-| `AWS_ACCESS_KEY_ID`     | Votre clé d'accès AWS         | Authentification AWS   |
-| `AWS_SECRET_ACCESS_KEY` | Votre clé secrète AWS         | Authentification AWS   |
-| `AWS_ACCOUNT_ID`        | ID de votre compte AWS        | Accès ECR              |
-| `EC2_HOST`              | IP publique de votre instance | Adresse de déploiement |
-| `BACKEND_HOST`          | IP publique de votre instance | Configuration frontend |
-| `BACKEND_PORT`          | `3001`                        | Port du backend        |
-
-### 3. Déploiement automatique
-
-```
-# Déclencher le déploiement
-
-git add .
-git commit -m "feat: deploy to AWS production"
-git push origin main
-
-```
-
-Le pipeline GitHub Actions va automatiquement :
-
-1. **Builder** les images Docker
-2. **Les pousser** vers ECR
-3. **Se connecter** à l'instance EC2 via Session Manager
-4. **Déployer** les nouvelles versions
-5. **Effectuer** des health checks
-
-### 4. Vérification du déploiement
-
-```
-# Voir l'IP publique
-
-cd terraform
-terraform output instance_ip
-
-# Accéder à l'application
-
-# Frontend : http://VOTRE_IP_PUBLIQUE
-
-# API : http://VOTRE_IP_PUBLIQUE/api/health
-
-```
-
-![Application Todo List](./docs/photo_1_projet.png)
-![Application Todo List](./docs/photo_2_projet.png)
-
 ## 📊 Surveillance et monitoring
 
 ### 1. CloudWatch Dashboard
@@ -322,34 +245,149 @@ Il est important de noter que :
 
 ### Composants AWS
 
+#### Infrastructure Core
 - **EC2** : Instance t2.micro avec Amazon Linux 2
-- **CloudFront** : CDN global avec 100+ edge locations
-- **DynamoDB** : Base de données NoSQL pour les données d'application
-- **ECR** : Registre Docker privé pour les images
-- **IAM** : Rôles et politiques pour la sécurité
-- **CloudWatch** : Monitoring et logs centralisés
-- **S3** : Stockage des logs CloudFront
-- **Secrets Manager** : Gestion sécurisée des secrets
-- **Systems Manager** : Accès sécurisé aux instances sans SSH
+  - Configuration optimisée pour Docker et Node.js
+  - IAM Instance Profile pour accès sécurisé aux services AWS
+  - Session Manager activé (aucun accès SSH requis)
+  - Elastic IP pour adresse IP fixe
 
+- **VPC et Networking** : 
+  - Utilisation du VPC par défaut avec Security Groups configurés
+  - Ports ouverts : 80 (HTTP), 3000-3001 (applications)
+  - Règles de sécurité restrictives avec accès contrôlé
+
+#### Stockage et Base de données
+- **DynamoDB** : Base de données NoSQL pour les données d'application
+  - Table : `iim-project-data` avec clé primaire `id`
+  - Mode de facturation : Pay-per-request (optimisé pour développement)
+  - Chiffrement au repos activé par défaut
+
+- **S3** : Stockage multi-usage
+  - Bucket pour les logs CloudFront avec chiffrement AES256
+  - Bucket pour l'état Terraform (backend centralisé)
+  - Versioning activé et accès public bloqué
+
+#### Container Registry et CDN
+- **ECR** : Registre Docker privé pour les images
+  - Repositories : `iim-project-frontend` et `iim-project-backend`
+  - Scan de sécurité automatique activé
+  - Lifecycle policies pour optimiser les coûts
+
+- **CloudFront** : CDN global avec 100+ edge locations
+  - Distribution optimisée pour applications React/Node.js
+  - Cache behaviors spécifiques : statiques (1 an), API (pas de cache)
+  - Compression gzip automatique et HTTP/2 activé
+  - Restriction géographique configurée (whitelist)
+
+#### Sécurité et Monitoring
+- **IAM** : Rôles et politiques pour la sécurité
+  - Rôle EC2 avec permissions granulaires (DynamoDB, ECR, CloudWatch, Secrets Manager)
+  - Politiques spécifiques pour chaque service sans over-permissions
+  - Rotation automatique des credentials via Instance Profile
+
+- **Secrets Manager** : Gestion sécurisée des secrets
+  - Secret : `iim-project-secrets` avec rotation automatique
+  - Chiffrement avec clés AWS KMS
+  - Accès contrôlé via IAM policies
+
+- **CloudWatch** : Monitoring et logs centralisés
+  - Log Groups : `/iim-project/application` et `/aws/ec2/containers`
+  - Dashboard personnalisé avec métriques applicatives
+  - Alertes automatiques (CPU > 80%, erreurs 4xx/5xx CloudFront)
+  - Rétention des logs : 7 jours (optimisé coût/debug)
+
+- **Systems Manager** : Accès sécurisé aux instances sans SSH
+  - Session Manager pour connexion chiffrée
+  - Patch Manager pour mises à jour automatiques
+  - Parameter Store pour configuration (si nécessaire)
+  
 ### Sécurité
 
+#### Accès et Authentification
 - **Aucune clé SSH** : Utilisation exclusive de Session Manager
+  - Connexions chiffrées via AWS Systems Manager
+  - Logs d'accès centralisés dans CloudTrail
+  - Révocation d'accès instantanée via IAM
+
 - **IAM Roles** : Permissions granulaires par service
+  - Principe du moindre privilège appliqué
+  - Rôles spécifiques : EC2, CloudFront, Lambda (si utilisé)
+  - Pas de credentials hardcodés dans le code
+
+#### Chiffrement et Protection des données
+- **Chiffrement en transit** : 
+  - HTTPS ready avec CloudFront (certificat SSL/TLS automatique)
+  - Connexions chiffrées entre services AWS
+  - Session Manager utilise TLS 1.2+
+
+- **Chiffrement au repos** :
+  - DynamoDB : Chiffrement par défaut avec clés AWS KMS
+  - S3 : Chiffrement AES256 pour tous les buckets
+  - Secrets Manager : Chiffrement avec rotation automatique
+
+#### Isolation et Contrôle d'accès
 - **Secrets masqués** : Aucun secret visible dans les logs
-- **HTTPS ready** : Architecture préparée pour SSL/TLS
+  - Variables d'environnement sécurisées via Secrets Manager
+  - GitHub Secrets pour les credentials AWS (jamais en plaintext)
+  - Logs applicatifs sans exposition de données sensibles
+
+- **Network Security** :
+  - Security Groups restrictifs (ports minimums ouverts)
+  - Pas d'accès direct à DynamoDB depuis l'extérieur
+  - CloudFront comme seul point d'entrée HTTPS public
+
+#### Monitoring de sécurité
+- **CloudTrail** : Audit trail de toutes les actions AWS
+- **CloudWatch Alarms** : Alertes sur comportements anormaux
+- **ECR Image Scanning** : Scan automatique des vulnérabilités
+- **WAF Ready** : Architecture préparée pour AWS WAF si nécessaire
+
 
 ![Autorisation IAM](./docs/autorisation_role_iam.png)
 
 ### Pipeline CI/CD
 
-1. **Tests automatisés** : Validation du code backend et frontend
-2. **Trigger** : Push sur la branche main
-3. **Build** : Construction des images Docker (seulement si tests passent)
-4. **Push** : Envoi vers ECR
-5. **Deploy** : Déploiement via SSM sur EC2
-6. **Health check** : Validation automatique post-déploiement
-7. **Notification** : Status dans GitHub Actions
+Le pipeline GitHub Actions s'exécute automatiquement selon cette séquence :
+
+1. **Infrastructure Terraform** : Déploiement/mise à jour de l'infrastructure AWS
+   - Initialisation du backend S3 avec `prod.s3.tfbackend`
+   - Validation du formatage avec `terraform fmt -check`
+   - Planification et application des changements d'infrastructure
+
+2. **Tests automatisés** : Validation du code backend et frontend
+   - Tests unitaires backend : 8 tests couvrant tous les endpoints API
+   - Tests frontend React avec mocks axios
+   - **Blocage du déploiement** si un test échoue
+
+3. **Construction des images Docker** : (seulement si tests passent)
+   - Build de l'image backend Node.js avec optimisations
+   - Build de l'image frontend React avec optimisations de production
+   - Tagging avec `latest` et hash du commit GitHub
+
+4. **Push vers ECR** : Envoi des images vers Amazon Elastic Container Registry
+   - Authentification automatique via GitHub Actions
+   - Push simultané des versions `latest` et `commit-hash`
+   - Scan de sécurité automatique des images
+
+5. **Déploiement via SSM sur EC2** : 
+   - Connexion sécurisée via AWS Systems Manager Session Manager
+   - Pull des nouvelles images depuis ECR
+   - Déploiement zero-downtime avec réseau Docker isolé
+   - Configuration des variables d'environnement production
+
+6. **Invalidation CloudFront** : Mise à jour du cache CDN global
+   - Invalidation automatique de tous les chemins (`/*`)
+   - Attente de la propagation sur les 100+ edge locations
+   - Validation de la mise à jour du cache
+
+7. **Health checks et validation** : Validation automatique post-déploiement
+   - Test de l'endpoint `/api/health` du backend
+   - Vérification de l'accessibilité du frontend
+   - Tests de performance entre accès direct et CloudFront
+   - Rapport automatique dans les logs GitHub Actions
+
+8. **Notification** : Status complet dans GitHub Actions avec métriques
 
 ![GitHub Actions Pipeline](./docs/github_actions.png)
 ![ECR Instance](./docs/instance_ecr.png)
@@ -387,14 +425,6 @@ Le projet inclut une suite de tests automatisés qui s'exécutent à chaque push
 - **Frontend** : Tests des composants principaux et interactions utilisateur
 - **Rapports** : Génération automatique de rapports de couverture
 
-### Intégration CI/CD
-
-Les tests sont intégrés dans le pipeline GitHub Actions :
-
-1. **Installation** des dépendances Node.js
-2. **Exécution** des tests backend et frontend
-3. **Validation** : Le déploiement ne se fait que si tous les tests passent
-4. **Couverture** : Génération automatique des rapports de couverture
 
 ## 🎓 Conclusion
 

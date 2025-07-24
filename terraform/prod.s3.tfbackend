@@ -1,5 +1,5 @@
-bucket         = "hugo-terraform-state-prod-1753280860"
-key            = "prod/terraform.tfstate"   
-region         = "eu-west-1"                
-dynamodb_table = "terraform-state-lock-prod"
+bucket         = "terraform-state-1753342715"
+key            = "prod/terraform.tfstate"
+region         = "eu-west-1"
+dynamodb_table = "terraform-lock-prod"
 encrypt        = true
